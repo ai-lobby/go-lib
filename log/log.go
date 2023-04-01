@@ -1,7 +1,9 @@
 package log
 
 import (
+	"fmt"
 	"os"
+	"runtime"
 	"time"
 
 	"golang.org/x/exp/slog"
@@ -12,9 +14,11 @@ type Recorder interface {
 }
 
 type defaultRecord struct {
+	LogCaller bool
 	logger    *slog.Logger
 	msg       string
-	timestamp time.Time
+	now       slog.Attr
+	caller    slog.Attr
 }
 
 func NewDefaultRecord() *defaultRecord {
@@ -23,10 +27,47 @@ func NewDefaultRecord() *defaultRecord {
 	}
 }
 
+func (r *defaultRecord) SetLogger(h slog.Handler) error {
+	r.logger = slog.New(h)
+	return nil
+}
+
 func (r *defaultRecord) Info() {
+	if r.LogCaller {
+		_, f, l, _ := runtime.Caller(1)
+		r.caller = slog.String("caller", fmt.Sprintf("%v:%v", f, l))
+	}
+
 	r.logger.Info(
 		r.msg,
-		slog.Time("timestamp", r.timestamp),
+		r.now,
+		r.caller,
+	)
+}
+
+func (r *defaultRecord) Error() {
+	if r.LogCaller {
+		_, f, l, _ := runtime.Caller(1)
+		r.caller = slog.String("caller", fmt.Sprintf("%v:%v", f, l))
+	}
+
+	r.logger.Error(
+		r.msg,
+		r.now,
+		r.caller,
+	)
+}
+
+func (r *defaultRecord) Debug() {
+	if r.LogCaller {
+		_, f, l, _ := runtime.Caller(1)
+		r.caller = slog.String("caller", fmt.Sprintf("%v:%v", f, l))
+	}
+
+	r.logger.Debug(
+		r.msg,
+		r.now,
+		r.caller,
 	)
 }
 
@@ -35,7 +76,7 @@ func (r *defaultRecord) Msg(msg string) *defaultRecord {
 	return r
 }
 
-func (r *defaultRecord) Timestamp(timestamp time.Time) *defaultRecord {
-	r.timestamp = timestamp
+func (r *defaultRecord) Now() *defaultRecord {
+	r.now = slog.Time("now", time.Now())
 	return r
 }
